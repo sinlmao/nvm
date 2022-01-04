@@ -1870,9 +1870,12 @@ nvm_get_arch() {
     *) NVM_ARCH="${HOST_ARCH}" ;;
   esac
 
-  # If running a 64bit ARM kernel but a 32bit ARM userland, change ARCH to 32bit ARM (armv7l)
-  L=$(ls -dl /sbin/init 2>/dev/null) # if /sbin/init is 32bit executable
-  if [ "$(uname)" = "Linux" ] && [ "${NVM_ARCH}" = arm64 ] && [ "$(od -An -t x1 -j 4 -N 1 "${L#*-> }")" = ' 01' ]; then
+  # If running a 64bit ARM kernel but a 32bit ARM userland,
+  # change ARCH to 32bit ARM (armv7l) if /sbin/init is 32bit executable
+  local L
+  if [ "$(uname)" = "Linux" ] && [ "${NVM_ARCH}" = arm64 ] &&
+    L="$(ls -dl /sbin/init 2>/dev/null)" &&
+    [ "$(od -An -t x1 -j 4 -N 1 "${L#*-> }")" = ' 01' ]; then
     NVM_ARCH=armv7l
     HOST_ARCH=armv7l
   fi
@@ -2740,6 +2743,15 @@ nvm() {
     IFS="${DEFAULT_IFS}" nvm "$@"
     EXIT_CODE="$?"
     set -a
+    return "$EXIT_CODE"
+  elif [ -n "${BASH-}" ] && [ "${-#*E}" != "$-" ]; then
+    # shellcheck disable=SC3041
+    set +E
+    local EXIT_CODE
+    IFS="${DEFAULT_IFS}" nvm "$@"
+    EXIT_CODE="$?"
+    # shellcheck disable=SC3041
+    set -E
     return "$EXIT_CODE"
   elif [ "${IFS}" != "${DEFAULT_IFS}" ]; then
     IFS="${DEFAULT_IFS}" nvm "$@"
